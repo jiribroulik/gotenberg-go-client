@@ -65,8 +65,8 @@ func (req *request) formValues() map[string]string {
 
 // Post sends a request to the Gotenberg API
 // and returns the response.
-func (c *Client) Post(req Request) (*http.Response, error) {
-	body, contentType, err := multipartForm(req)
+func (c *Client) Post(req Request, body *bytes.Buffer) (*http.Response, error) {
+	body, contentType, err := multipartForm(req, body)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (c *Client) Store(req Request, dest string) error {
 	if hasWebhook(req) {
 		return errors.New("cannot use Store method with a webhook")
 	}
-	resp, err := c.Post(req)
+	resp, err := c.Post(req, nil)
 	if err != nil {
 		return err
 	}
@@ -123,29 +123,9 @@ func fileExists(name string) bool {
 	return !os.IsNotExist(err)
 }
 
-func multipartForm(req Request) (*bytes.Buffer, string, error) {
-	body := &bytes.Buffer{}
+func multipartForm(req Request, body *bytes.Buffer) (*bytes.Buffer, string, error) {
 	writer := multipart.NewWriter(body)
 	defer writer.Close() // nolint: errcheck
-	for filename, fpath := range req.formFiles() {
-		// https://github.com/thecodingmachine/gotenberg-go-client/issues/3
-		if fpath == "" {
-			continue
-		}
-		in, err := os.Open(fpath)
-		if err != nil {
-			return nil, "", fmt.Errorf("%s: opening file: %v", filename, err)
-		}
-		defer in.Close() // nolint: errcheck
-		part, err := writer.CreateFormFile("files", filename)
-		if err != nil {
-			return nil, "", fmt.Errorf("%s: creating form file: %v", filename, err)
-		}
-		_, err = io.Copy(part, in)
-		if err != nil {
-			return nil, "", fmt.Errorf("%s: copying file: %v", filename, err)
-		}
-	}
 	for name, value := range req.formValues() {
 		if err := writer.WriteField(name, value); err != nil {
 			return nil, "", fmt.Errorf("%s: writing form field: %v", name, err)
