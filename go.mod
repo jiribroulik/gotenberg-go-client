@@ -1,4 +1,4 @@
-module github.com/jiribroulik/gotenberg-go-client/v5
+module github.com/jiribroulik/gotenberg-go-client
 
 go 1.12
 
